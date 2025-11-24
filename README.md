@@ -1,11 +1,13 @@
 # Django Channels 通知系统
 
-这是一个基于Django和Django Channels实现的实时通知系统，支持运营组向财务组发送通知并获取确认状态。
+这是一个基于Django和Django Channels实现的实时通知系统，支持运营组向财务组发送通知并获取确认状态。系统支持多组对应关系，运营一组(op1)只能向财务一组(fin1)发送通知，运营二组(op2)只能向财务二组(fin2)发送通知。
 
 ## 项目功能
 
 - 基于WebSocket的实时通知推送
-- 组间通知（运营组→财务组）
+- 多组对应关系的组间通知（运营组→财务组）
+  - 运营一组(op1) → 财务一组(fin1)
+  - 运营二组(op2) → 财务二组(fin2)
 - 通知确认机制
 - 通知历史记录查询
 - 完整的RESTful API
@@ -130,7 +132,7 @@ python manage.py runserver
 ```json
 {
     "content": "测试通知内容",
-    "receiver_group": "finance"
+    "receiver_group": "finance_group_1"
 }
 ```
 
@@ -140,8 +142,8 @@ python manage.py runserver
     "id": 1,
     "content": "测试通知内容",
     "sender": "username",
-    "sender_group": "hr",
-    "receiver_group": "finance",
+    "sender_group": "operations_group_1",
+    "receiver_group": "finance_group_1",
     "status": "pending",
     "created_at": "2024-01-01T12:00:00Z"
 }
@@ -165,8 +167,8 @@ python manage.py runserver
         "id": 1,
         "content": "测试通知内容",
         "sender": "username",
-        "sender_group": "hr",
-        "receiver_group": "finance",
+        "sender_group": "operations_group_1",
+        "receiver_group": "finance_group_1",
         "status": "pending",
         "created_at": "2024-01-01T12:00:00Z"
     }
@@ -186,8 +188,8 @@ python manage.py runserver
     "id": 1,
     "content": "测试通知内容",
     "sender": "username",
-    "sender_group": "hr",
-    "receiver_group": "finance",
+    "sender_group": "operations_group_1",
+    "receiver_group": "finance_group_1",
     "status": "confirmed",
     "confirmed_by": "current_user",
     "confirmed_at": "2024-01-01T13:00:00Z",
@@ -200,7 +202,7 @@ python manage.py runserver
 ### 连接WebSocket
 
 ```javascript
-const ws = new WebSocket('ws://localhost:8000/ws/notifications/finance/');
+const ws = new WebSocket('ws://localhost:8000/ws/notifications/finance_group_1/');
 
 ws.onopen = function() {
     console.log('WebSocket连接已建立');
@@ -222,7 +224,8 @@ ws.onclose = function() {
 ws.send(JSON.stringify({
     'type': 'send_notification',
     'content': '测试WebSocket通知',
-    'receiver_group': 'finance'
+    'receiver_group': 'finance_group_1',
+    'sender_group': 'operations_group_1'
 }));
 ```
 
