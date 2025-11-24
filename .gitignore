@@ -1,0 +1,61 @@
+# 虚拟环境
+venv/
+env/
+.env/
+
+# IDE文件
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 数据库文件
+*.sqlite3
+*.db
+
+# 日志文件
+*.log
+logs/
+
+# 缓存文件
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# 环境变量文件
+.env
+.env.local
+.env.production
+.env.development
+
+# 测试覆盖报告
+coverage/
+htmlcov/
+.coverage
+.coverage.*
+.pytest_cache/
+
+# 静态文件(如果使用了CDN)
+staticfiles/
+
+# 打包文件
+*.egg
+*.egg-info/
+dist/
+build/
+
+# 调试工具
+*.pid
+*.seed
+*.pid.lock
+
+# 本地历史文件
+.history/
+
+# 临时文件
+tmp/
+temp/
