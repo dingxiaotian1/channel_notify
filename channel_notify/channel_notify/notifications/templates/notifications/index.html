@@ -1,3 +1,4 @@
+{% load tz custom_filters %}
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -265,7 +266,6 @@
         </div>
         
         <!-- 发送通知区域 -->
-        {% if 'operations' in groups %}
         <div class="card">
             <h2>发送通知</h2>
             <div id="message-area"></div>
@@ -273,17 +273,14 @@
                 <div class="form-group">
                     <label for="target-group">目标组：</label>
                     <select id="target-group">
-                        <option value="finance">财务组</option>
-                        <option value="hr">人事组</option>
-                        <option value="it">IT组</option>
-                        <option value="management">管理层</option>
+                        <!-- 选项会通过JavaScript动态填充 -->
+                        <option value="">正在加载...</option>
                     </select>
                 </div>
                 <textarea id="notification-content" placeholder="请输入通知内容..." required></textarea>
                 <button id="send-notification">发送通知</button>
             </div>
         </div>
-        {% endif %}
 
         <!-- 接收通知区域 -->
         {% if 'finance' in groups %}
@@ -338,6 +335,55 @@
                     userInfo.groups = [];
                 }
             }
+        
+        // 动态显示/隐藏发送通知区域
+         function updateNotificationFormVisibility() {
+             const notificationForm = document.querySelector('.notification-form').parentElement;
+             // 检查用户是否属于任何运营组
+             const isOperationsUser = userInfo.groups.some(group => group.startsWith('operations_'));
+             
+             if (notificationForm) {
+                 if (isOperationsUser) {
+                     notificationForm.style.display = 'block';
+                     logDebug('运营组用户，显示发送表单');
+                 } else {
+                     notificationForm.style.display = 'none';
+                     logDebug('非运营组用户，隐藏发送表单');
+                 }
+             }
+         }
+         
+         // 动态填充目标组下拉列表
+          function populateTargetGroups() {
+              const targetGroupSelect = document.getElementById('target-group');
+              if (!targetGroupSelect) return;
+              
+              // 清空现有选项
+              targetGroupSelect.innerHTML = '';
+              
+              // 根据用户组动态添加目标组选项
+              if (userInfo.groups.includes('operations_group_1')) {
+                  // 运营一组用户只能选择财务一组
+                  const option = document.createElement('option');
+                  option.value = 'finance_group_1';
+                  option.textContent = '财务一组';
+                  targetGroupSelect.appendChild(option);
+                  logDebug('为运营一组用户填充财务一组选项');
+              } else if (userInfo.groups.includes('operations_group_2')) {
+                  // 运营二组用户只能选择财务二组
+                  const option = document.createElement('option');
+                  option.value = 'finance_group_2';
+                  option.textContent = '财务二组';
+                  targetGroupSelect.appendChild(option);
+                  logDebug('为运营二组用户填充财务二组选项');
+              }
+          }
+          
+          // 页面加载时执行
+          document.addEventListener('DOMContentLoaded', function() {
+              updateNotificationFormVisibility();
+              populateTargetGroups();
+          });
         
         // 调试信息输出函数
         function logDebug(message) {
@@ -491,8 +537,8 @@
                 showMessage('收到新通知!', 'info');
                 addNotificationToReceivedList(data.message);
                 
-                // 如果是财务组用户，添加到待确认列表
-                if (userInfo.groups.includes('finance')) {
+                // 如果是财务组用户（任何财务组），添加到待确认列表
+                if (userInfo.groups.some(group => group.startsWith('finance_'))) {
                     addNotificationToPendingList(data.message);
                 }
             } else if (data.type === 'notification_confirmed') {
@@ -546,11 +592,15 @@
                 return;
             }
             
+            // 获取当前用户所属运营组
+            const senderGroup = userInfo.groups.find(g => g.startsWith('operations_')) || '';
+            
             // 准备消息数据
             const data = {
                 type: 'send_notification',
                 content: content,
-                receiver_group: targetGroup
+                receiver_group: targetGroup,
+                sender_group: senderGroup
             };
             
             // 通过第一个打开的连接发送消息
@@ -558,7 +608,7 @@
             
             // 清空输入框
             document.getElementById('notification-content').value = '';
-            showMessage('通知已发送', 'success');
+            showMessage(`通知已发送给 ${targetGroup === 'finance_group_1' ? '财务一组' : targetGroup === 'finance_group_2' ? '财务二组' : targetGroup}！`, 'success');
             
             // 滚动通知列表到底部
             setTimeout(() => {
@@ -744,16 +794,22 @@
                     receivedList.innerHTML = '';
                     
                     if (data.received_notifications && data.received_notifications.length > 0) {
+                        // 检查用户是否为财务组用户
+                        const isFinanceUser = userInfo.groups.some(group => group.startsWith('finance_'));
+                        
                         data.received_notifications.forEach(notification => {
-                            const notificationItem = createNotificationElement(notification, false);
+                            // 财务组用户对未确认的通知显示确认按钮
+                            const showConfirm = isFinanceUser && notification.status === 'pending';
+                            const notificationItem = createNotificationElement(notification, showConfirm);
                             receivedList.appendChild(notificationItem);
                         });
                     } else {
                         receivedList.innerHTML = '<p>暂无已接收通知</p>';
                     }
                     
-                    // 加载待确认通知（仅财务组用户）
-                    if (userInfo.groups.includes('finance')) {
+                    // 加载待确认通知（所有财务组用户）
+                    const isFinanceUser = userInfo.groups.some(group => group.startsWith('finance_'));
+                    if (isFinanceUser) {
                         const pendingList = document.getElementById('pending-notifications');
                         pendingList.innerHTML = '';
                         

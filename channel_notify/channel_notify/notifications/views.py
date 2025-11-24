@@ -61,29 +61,37 @@ def create_groups(request):
 def create_users(request):
     """创建测试用户（仅用于演示）"""
     # 获取或创建组
-    operations_group = Group.objects.get_or_create(name='operations')[0]
-    finance_group = Group.objects.get_or_create(name='finance')[0]
+    operations_group_1 = Group.objects.get_or_create(name='operations_group_1')[0]
+    operations_group_2 = Group.objects.get_or_create(name='operations_group_2')[0]
+    finance_group_1 = Group.objects.get_or_create(name='finance_group_1')[0]
+    finance_group_2 = Group.objects.get_or_create(name='finance_group_2')[0]
     
-    # 创建运营用户
+    # 创建运营一组用户
     try:
         op_user1 = User.objects.create_user(username='op1', password='password123')
-        op_user1.groups.add(operations_group)
-        
-        op_user2 = User.objects.create_user(username='op2', password='password123')
-        op_user2.groups.add(operations_group)
+        op_user1.groups.add(operations_group_1)
     except:
         op_user1 = None
+    
+    # 创建运营二组用户
+    try:
+        op_user2 = User.objects.create_user(username='op2', password='password123')
+        op_user2.groups.add(operations_group_2)
+    except:
         op_user2 = None
     
-    # 创建财务用户
+    # 创建财务一组用户
     try:
         fin_user1 = User.objects.create_user(username='fin1', password='password123')
-        fin_user1.groups.add(finance_group)
-        
-        fin_user2 = User.objects.create_user(username='fin2', password='password123')
-        fin_user2.groups.add(finance_group)
+        fin_user1.groups.add(finance_group_1)
     except:
         fin_user1 = None
+    
+    # 创建财务二组用户
+    try:
+        fin_user2 = User.objects.create_user(username='fin2', password='password123')
+        fin_user2.groups.add(finance_group_2)
+    except:
         fin_user2 = None
     
     return JsonResponse({

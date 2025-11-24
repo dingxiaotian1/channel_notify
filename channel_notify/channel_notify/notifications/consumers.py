@@ -81,22 +81,14 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             }))
     
     async def send_notification(self, data):
-        """发送通知给接收组"""
+        """发送通知给接收组，确保组对应关系正确"""
         content = data.get('content')
         receiver_group_name = data.get('receiver_group')
         
-        if not content or not receiver_group_name:
+        if not content:
             await self.send(text_data=json.dumps({
                 'type': 'error',
-                'message': '缺少必要参数: content 和 receiver_group'
-            }))
-            return
-        
-        # 验证接收组是否存在
-        if not await self.group_exists(receiver_group_name):
-            await self.send(text_data=json.dumps({
-                'type': 'error',
-                'message': f'接收组 {receiver_group_name} 不存在'
+                'message': '缺少必要参数: content'
             }))
             return
         
@@ -104,15 +96,45 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             # 获取当前用户所属的组
             sender_group = await self.get_user_group(self.user)
             
-            # 获取接收组
-            receiver_group = await self.get_group_by_name(receiver_group_name)
-            
-            if not sender_group or not receiver_group:
+            if not sender_group:
                 await self.send(text_data=json.dumps({
                     'type': 'error',
-                    'message': '组不存在'
+                    'message': '用户不属于任何组'
                 }))
                 return
+            
+            sender_group_name = sender_group.name
+            
+            # 根据对应关系确定接收组
+            if not receiver_group_name:
+                # 如果没有指定接收组，根据对应关系自动选择
+                receiver_group_name = await self.get_corresponding_group(sender_group_name)
+                if not receiver_group_name:
+                    await self.send(text_data=json.dumps({
+                        'type': 'error',
+                        'message': f'无法确定与{sender_group_name}对应的组'
+                    }))
+                    return
+            else:
+                # 验证指定的接收组是否与发送组对应
+                expected_receiver = await self.get_corresponding_group(sender_group_name)
+                if expected_receiver and receiver_group_name != expected_receiver:
+                    await self.send(text_data=json.dumps({
+                        'type': 'error',
+                        'message': f'{sender_group_name}只能发送通知给{expected_receiver}'
+                    }))
+                    return
+            
+            # 验证接收组是否存在
+            if not await self.group_exists(receiver_group_name):
+                await self.send(text_data=json.dumps({
+                    'type': 'error',
+                    'message': f'接收组 {receiver_group_name} 不存在'
+                }))
+                return
+            
+            # 获取接收组
+            receiver_group = await self.get_group_by_name(receiver_group_name)
             
             # 创建通知记录
             notification = await self.create_notification(
@@ -252,14 +274,21 @@ class NotificationConsumer(AsyncWebsocketConsumer):
     
     @database_sync_to_async
     def get_user_group(self, user):
-        """获取用户所属的组，优先返回operations或finance组"""
+        """获取用户所属的组，包括具体的运营组和财务组"""
         groups = user.groups.all()
-        # 优先检查用户是否属于operations或finance组
-        for group in groups:
-            if group.name in ['operations', 'finance']:
-                return group
-        # 如果没有找到特定组，返回第一个组
+        # 返回用户所属的第一个组
         return groups[0] if groups else None
+        
+    @database_sync_to_async
+    def get_corresponding_group(self, group_name):
+        """获取对应的组，运营一组对应财务一组，运营二组对应财务二组"""
+        group_mapping = {
+            'operations_group_1': 'finance_group_1',
+            'finance_group_1': 'operations_group_1',
+            'operations_group_2': 'finance_group_2',
+            'finance_group_2': 'operations_group_2'
+        }
+        return group_mapping.get(group_name)
     
     @database_sync_to_async
     def get_group_by_name(self, name):
